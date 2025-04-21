@@ -6,14 +6,14 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const SECRET_KEY = 'sk_live_VcF98PAnjeDWQPqqXkIeWGCaup0ziGTfkAAA5gx8Bl';
+const SECRET_KEY = 'at_U4RA@quTyOqOVegn-Pnd_he1GhbwgzHhlNf58-Q2JSMtPUnE';
 const auth = 'Basic ' + Buffer.from(`${SECRET_KEY}:x`).toString('base64');
 
 app.post('/create-pix', async (req, res) => {
     try {
         const response = await axios({
             method: 'POST',
-            url: 'https://api.conta.skalepay.com.br/v1/transactions',
+            url: 'https://app.virtupay.com.br/transactions',
             headers: {
                 'Authorization': auth,
                 'Content-Type': 'application/json',
