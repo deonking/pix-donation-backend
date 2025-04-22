@@ -1,170 +1,46 @@
-import React, { useState } from 'react';
-import { createRoot } from 'react-dom/client';
-import axios from 'axios';
-import QRCode from 'qrcode';
+const express = require('express');
+const axios = require('axios');
+const cors = require('cors');
+const app = express();
 
-// Substitua pela sua chave de API da Virtupay
-const API_KEY = 'at_U4RA@quTyOqOVegn-Pnd_he1GhbwgzHhlNf58-Q2JSMtPUnE'; // Obtenha no painel da Virtupay
+app.use(cors());
+app.use(express.json());
 
-const App = () => {
-    const [amount, setAmount] = useState(50.00); // Valor padrão: R$50,00 (em reais)
-    const [qrCodeUrl, setQrCodeUrl] = useState('');
-    const [pixCode, setPixCode] = useState('');
-    const [paymentStatus, setPaymentStatus] = useState('');
-    const [transactionId, setTransactionId] = useState('');
+const SECRET_KEY = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIxIiwianRpIjoiY2NjOWExODAwYWU3Y2U1MzMzOGU4Mjc5MTM0NTcyZTExM2U1ZjE5Y2U1ZmY1ZjQxNTc5YmYzM2ZhZWE1YTg1ZTFiNjcxYzhhMTRmMjBiMjIiLCJpYXQiOjE3NDUwMjc5NzUuOTkzMTEyLCJuYmYiOjE3NDUwMjc5NzUuOTkzMTE0LCJleHAiOjI2OTE3MTI3NzUuOTc2MzkzLCJzdWIiOiI0OTkiLCJzY29wZXMiOlsiYWRtaW4iXX0.TmOo-kWYtcM3nU0jXLqwpI_Cw0sH75v6Ml-CRHwSdGfqRU9yTlJnsEdiI2xy8ZuP-k0joluqTBdWXq2IU3kh-tMjWiDIM3Y6MP68PtbvlPHWYrA2T1erHHr3WptsFt7ocNpTyAoPq-ktndGPm6DJCqXvZMIu19Ox2h4nekUECxEqNv8_bV-DQqkiJ8hS2YngGlQl4OkrTyMnVSBAIpmOa_t3rKVWMownuzdyV6hrQ7f-vuM8ksdN6S0jVCz1OxKcWk9LeXCMwraKey2Wx1rOVkKi_5Kyw3ujKua4XFCMEN0fU9QzWUFLAzo2t9vQ8jvWzYr7KwQ2ouHNHaHQV2JrCBdeiWEq7-D3Rr8APZK_eU90C9rWMf0_QF8Bdak5_dskV3PMWpsoJDXDN5FcbcziQr_xpdFo3RUR1I6fjak7wSIamJ3Nohy_fEfIgGF9Hvu35HG6am-8--Zfe2KzHHfQqENcubnc-E1bi-aUCvz8wS6tvIPu6uzecEVEPiYGWUWImIr7T6qq531aoVKkeQM9p17a9F6Pasdi4Q2Iq9eOUKb90qHFo9JXwrS8e_1Ag7xbJr-Qi5oskqHKeNljI-vxXwYbp0Pe5DmO94UuPFDaEm7CGJwsJ_OY5sUMHB228WxCpsuD-GpsFUCSxunvgbc_aoJmv9KAf9HR7znhl0mWbuU';
+const auth = 'bearer ' + Buffer.from(`${SECRET_KEY}:x`).toString('base64');
 
-    const amounts = [10.00, 20.00, 50.00, 100.00, 200.00, 300.00]; // Valores em reais
-
-    const createTransaction = async () => {
-        const body = {
-            amount: amount, // Valor em reais (ex.: 50.00)
-            paymentMethod: 'pix',
-            customer: {
-                name: 'João da Silva',
-                email: 'joao@email.com',
-                cpf: '09624612536', // A Virtupay pode exigir apenas o número
+app.post('/create-pix', async (req, res) => {
+    try {
+        const response = await axios({
+            method: 'POST',
+            url: 'https://checkout.lunarcash.com.br/api/v1/payments',
+            headers: {
+                'Authorization': auth,
+                'Content-Type': 'application/json',
             },
-            orderId: `DOACAO_${Date.now()}`, // Identificador único do pedido
-        };
+            data: req.body,
+        });
+        res.json(response.data);
+    } catch (error) {
+        console.error('Erro ao criar transação:', error.response?.data || error.message);
+        res.status(error.response?.status || 500).json(error.response?.data || { message: 'Erro ao gerar Pix' });
+    }
+});
 
-        try {
-            const response = await axios({
-                method: 'POST',
-                url: 'https://api.virtupayments.com.br/api/v1/transactions',
-                headers: {
-                    'Api-Key': API_KEY,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-                data: body,
-            });
+// Opcional: Endpoint para verificar status da transação
+app.get('/transaction/:id', async (req, res) => {
+    try {
+        const response = await axios.get(`https://checkout.lunarcash.com.br/api/v1/payments${req.params.id}`, {
+            headers: { 'Authorization': auth },
+        });
+        res.json(response.data);
+    } catch (error) {
+        console.error('Erro ao verificar transação:', error.response?.data || error.message);
+        res.status(error.response?.status || 500).json(error.response?.data || { message: 'Erro ao verificar transação' });
+    }
+});
 
-            // Logar a resposta para depuração
-            console.log('Resposta da API:', JSON.stringify(response.data, null, 2));
+// Servir arquivos estáticos do frontend
+app.use(express.static('public'));
 
-            // Ajuste conforme a estrutura real da resposta da Virtupay
-            // Exemplo hipotético: { transactionId: 'id', pix: { qrcode: 'string' } }
-            const qrCode = response.data.pix?.qrcode; // Ajuste o caminho
-            const id = response.data.transactionId; // Ajuste o caminho
-
-            if (!qrCode || !id) {
-                console.error('Campos esperados:', { qrCode, id });
-                throw new Error('QR code ou ID da transação não encontrados na resposta da API.');
-            }
-
-            setTransactionId(id);
-            setPixCode(qrCode);
-
-            // Gerar QR code como imagem
-            QRCode.toDataURL(qrCode, (err, url) => {
-                if (err) {
-                    console.error('Erro ao gerar QR code:', err);
-                    setPaymentStatus('Erro ao gerar QR code.');
-                    return;
-                }
-                setQrCodeUrl(url);
-            });
-
-            setPaymentStatus('Aguardando pagamento...');
-            checkPaymentStatus(id);
-        } catch (error) {
-            console.error('Erro ao criar transação:', error.response?.data || error.message);
-            setPaymentStatus(error.response?.data?.message || 'Erro ao gerar PIX. Tente novamente.');
-        }
-    };
-
-    const checkPaymentStatus = async (id) => {
-        const interval = setInterval(async () => {
-            try {
-                const response = await axios.get(`https://api.virtupayments.com.br/api/v1/transactions/${id}`, {
-                    headers: { 'Api-Key': API_KEY },
-                });
-                console.log('Status da transação:', response.data);
-                if (response.data.status === 'paid' || response.data.status === 'completed') {
-                    setPaymentStatus('Pagamento confirmado! Obrigado!');
-                    clearInterval(interval);
-                }
-            } catch (error) {
-                console.error('Erro ao verificar pagamento:', error.response?.data || error.message);
-            }
-        }, 5000); // Verifica a cada 5 segundos
-    };
-
-    const copyToClipboard = () => {
-        navigator.clipboard.writeText(pixCode);
-        alert('Código PIX copiado!');
-    };
-
-    return (
-        <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-            <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-                <h1 className="text-2xl font-bold text-center mb-6">Faça sua Doação</h1>
-
-                {/* Seleção de valores */}
-                <div className="grid grid-cols-3 gap-2 mb-6">
-                    {amounts.map((val) => (
-                        <button
-                            key={val}
-                            onClick={() => setAmount(val)}
-                            className={`py-2 px-4 rounded-lg font-semibold transition ${
-                                val === amount
-                                    ? 'bg-green-500 text-white scale-105'
-                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                            } ${val === 50.00 ? 'relative' : ''}`}
-                        >
-                            R${val.toFixed(2).replace('.', ',')}
-                            {val === 50.00 && (
-                                <span className="absolute top-0 right-0 bg-yellow-400 text-xs px-2 py-1 rounded-bl">
-                                    Mais Escolhido
-                                </span>
-                            )}
-                        </button>
-                    ))}
-                </div>
-
-                {/* Botão para gerar PIX */}
-                <button
-                    onClick={createTransaction}
-                    className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition"
-                >
-                    Gerar PIX
-                </button>
-
-                {/* Exibição do QR Code e código PIX */}
-                {qrCodeUrl && (
-                    <div className="mt-6 text-center">
-                        <img src={qrCodeUrl} alt="QR Code PIX" className="mx-auto mb-4" />
-                        <p className="text-sm text-gray-600 mb-2">Escaneie o QR Code ou copie o código:</p>
-                        <input
-                            type="text"
-                            value={pixCode}
-                            readOnly
-                            className="w-full p-2 border rounded-lg mb-2 text-center"
-                        />
-                        <button
-                            onClick={copyToClipboard}
-                            className="bg-gray-600 text-white py-1 px-4 rounded-lg hover:bg-gray-700 transition"
-                        >
-                            Copiar Código
-                        </button>
-                    </div>
-                )}
-
-                {/* Status do pagamento */}
-                {paymentStatus && (
-                    <p className="mt-4 text-center text-lg font-semibold">
-                        {paymentStatus.includes('Obrigado') ? (
-                            <span className="text-green-600">🎉 {paymentStatus}</span>
-                        ) : (
-                            <span className="text-gray-600">{paymentStatus}</span>
-                        )}
-                    </p>
-                )}
-            </div>
-        </div>
-    );
-};
-
-// Renderização com React 18
-const root = createRoot(document.getElementById('root'));
-root.render(<App />);
+app.listen(3000, () => console.log('Servidor rodando na porta 3000'));
